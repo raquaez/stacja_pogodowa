@@ -1,78 +1,122 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Stacja Pogodowa</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stacja Pogodowa z Wykresami</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       background-color: #121212;
       color: #ffffff;
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
-    }
-
-    h1 {
-      margin-bottom: 40px;
-    }
-
-    .dane {
-      font-size: 1.5em;
-      margin: 15px 0;
+      font-family: Arial, sans-serif;
       padding: 20px;
-      width: 100%;
-      max-width: 400px;
-      border-radius: 15px;
-      background-color: #1e1e1e;
-      box-shadow: 0 0 15px rgba(0,0,0,0.4);
-      transition: background-color 0.3s, transform 0.3s;
+      text-align: center;
     }
-
-    .dane:hover {
-      background-color: #2c2c2c;
-      transform: scale(1.02);
+    h1 {
+      margin-bottom: 30px;
+    }
+    .dane {
+      font-size: 1.3em;
+      margin: 10px 0;
+    }
+    canvas {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      margin: 20px 0;
     }
   </style>
 </head>
 <body>
   <h1>Stacja Pogodowa</h1>
+
   <div class="dane" id="temp">Temperatura: Ładowanie...</div>
   <div class="dane" id="press">Ciśnienie: Ładowanie...</div>
   <div class="dane" id="hum">Wilgotność: Ładowanie...</div>
 
+  <canvas id="chartTemp" width="400" height="200"></canvas>
+  <canvas id="chartPress" width="400" height="200"></canvas>
+  <canvas id="chartHum" width="400" height="200"></canvas>
+
   <script>
     const token = "_O5rM65Y3601TBQj8_liz3kTfPEk5S1D";
     const apiBase = `https://blynk.cloud/external/api/get?token=${token}`;
+    const maxPoints = 10;
+    const timeLabels = [];
 
-    async function pobierzDane(pin) {
-      const response = await fetch(`${apiBase}&${pin}`);
-      return await response.text();
+    const createChart = (ctxId, label, color) => {
+      const ctx = document.getElementById(ctxId).getContext('2d');
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: color,
+            backgroundColor: color + "33",
+            borderWidth: 2,
+            tension: 0.4
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: false },
+            x: { ticks: { color: '#ccc' } }
+          },
+          plugins: {
+            legend: { labels: { color: '#ccc' } }
+          }
+        }
+      });
+    };
+
+    const chartTemp = createChart("chartTemp", "Temperatura (°C)", "#00bcd4");
+    const chartPress = createChart("chartPress", "Ciśnienie (hPa)", "#ff6384");
+    const chartHum = createChart("chartHum", "Wilgotność (%)", "#9966ff");
+
+    async function pobierz(pin) {
+      const res = await fetch(`${apiBase}&${pin}`);
+      return await res.text();
     }
 
-    async function odswiezDane() {
+    async function aktualizujDane() {
       try {
         const [temp, press, hum] = await Promise.all([
-          pobierzDane("v1"),
-          pobierzDane("v2"),
-          pobierzDane("v3")
+          pobierz("v1"),
+          pobierz("v2"),
+          pobierz("v3")
         ]);
 
         document.getElementById('temp').textContent = `Temperatura: ${temp} °C`;
         document.getElementById('press').textContent = `Ciśnienie: ${press} hPa`;
         document.getElementById('hum').textContent = `Wilgotność: ${hum} %`;
+
+        const now = new Date();
+        const label = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        if (timeLabels.length >= maxPoints) {
+          timeLabels.shift();
+          chartTemp.data.datasets[0].data.shift();
+          chartPress.data.datasets[0].data.shift();
+          chartHum.data.datasets[0].data.shift();
+        }
+
+        timeLabels.push(label);
+        chartTemp.data.datasets[0].data.push(parseFloat(temp));
+        chartPress.data.datasets[0].data.push(parseFloat(press));
+        chartHum.data.datasets[0].data.push(parseFloat(hum));
+
+        chartTemp.update();
+        chartPress.update();
+        chartHum.update();
       } catch (err) {
-        console.error("Błąd pobierania danych:", err);
-        document.getElementById('temp').textContent = "Błąd pobierania temperatury";
-        document.getElementById('press').textContent = "Błąd pobierania ciśnienia";
-        document.getElementById('hum').textContent = "Błąd pobierania wilgotności";
+        console.error("Błąd:", err);
       }
     }
 
-    odswiezDane();
-    setInterval(odswiezDane, 600000); // 10 minut
+    aktualizujDane();
+    setInterval(aktualizujDane, 600000); // 10 minut
   </script>
 </body>
 </html>
