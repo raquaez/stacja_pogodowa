@@ -2,136 +2,54 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Stacja Pogodowa</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
+      background-color: #121212;
+      color: #ffffff;
       font-family: Arial, sans-serif;
-      text-align: center;
       padding: 20px;
-      background: #f4f4f4;
+      text-align: center;
     }
-    h1 {
-      color: #333;
-    }
-    p {
-      font-size: 1.2em;
-    }
-    canvas {
-      margin: 20px auto;
-      background: #fff;
+    .dane {
+      font-size: 1.5em;
+      margin: 15px 0;
+      padding: 10px;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-color: #1e1e1e;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
   <h1>Stacja Pogodowa</h1>
-
-  <div>
-    <p id="temp">Temperatura: Ładowanie...</p>
-    <p id="press">Ciśnienie: Ładowanie...</p>
-    <p id="hum">Wilgotność: Ładowanie...</p>
-  </div>
-
-  <div>
-    <canvas id="wykresTemp" width="400" height="200"></canvas>
-    <canvas id="wykresCisnienie" width="400" height="200"></canvas>
-    <canvas id="wykresWilgotnosc" width="400" height="200"></canvas>
-  </div>
+  <div class="dane" id="temp">Temperatura: Ładowanie...</div>
+  <div class="dane" id="press">Ciśnienie: Ładowanie...</div>
+  <div class="dane" id="hum">Wilgotność: Ładowanie...</div>
 
   <script>
-    const BLYNK_TOKEN = "O5rM65Y3601TBQj8_liz3kTfPEk5S1D";
-    const tempHistoria = [];
-    const pressHistoria = [];
-    const humHistoria = [];
-    const czasHistoria = [];
-    const maxPunktow = 10;
-
-    const ctxTemp = document.getElementById('wykresTemp').getContext('2d');
-    const wykresTemp = new Chart(ctxTemp, {
-      type: 'line',
-      data: {
-        labels: czasHistoria,
-        datasets: [{
-          label: 'Temperatura (°C)',
-          data: tempHistoria,
-          backgroundColor: 'rgba(0, 188, 212, 0.2)',
-          borderColor: '#00bcd4',
-          borderWidth: 2,
-          tension: 0.4
-        }]
-      },
-      options: { scales: { y: { beginAtZero: false } } }
-    });
-
-    const ctxPress = document.getElementById('wykresCisnienie').getContext('2d');
-    const wykresPress = new Chart(ctxPress, {
-      type: 'line',
-      data: {
-        labels: czasHistoria,
-        datasets: [{
-          label: 'Ciśnienie (hPa)',
-          data: pressHistoria,
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          borderColor: '#ff6384',
-          borderWidth: 2,
-          tension: 0.4
-        }]
-      },
-      options: { scales: { y: { beginAtZero: false } } }
-    });
-
-    const ctxHum = document.getElementById('wykresWilgotnosc').getContext('2d');
-    const wykresHum = new Chart(ctxHum, {
-      type: 'line',
-      data: {
-        labels: czasHistoria,
-        datasets: [{
-          label: 'Wilgotność (%)',
-          data: humHistoria,
-          backgroundColor: 'rgba(153, 102, 255, 0.2)',
-          borderColor: '#9966ff',
-          borderWidth: 2,
-          tension: 0.4
-        }]
-      },
-      options: { scales: { y: { beginAtZero: false } } }
-    });
-
-    function aktualizujWykres(dane, historia, wykres) {
-      const teraz = new Date();
-      const czas = `${teraz.getHours()}:${teraz.getMinutes().toString().padStart(2, '0')}`;
-      if (historia.length >= maxPunktow) {
-        historia.shift();
-        czasHistoria.shift();
-      }
-      historia.push(parseFloat(dane));
-      czasHistoria.push(czas);
-      wykres.update();
-    }
+    const token = "O5rM65Y3601TBQj8_liz3kTfPEk5S1D"; // Twój token Blynk
 
     async function odswiezDane() {
       try {
-        const temp = await fetch(`https://blynk.cloud/external/api/get?token=${BLYNK_TOKEN}&v1`).then(r => r.text());
-        const press = await fetch(`https://blynk.cloud/external/api/get?token=${BLYNK_TOKEN}&v2`).then(r => r.text());
-        const hum = await fetch(`https://blynk.cloud/external/api/get?token=${BLYNK_TOKEN}&v3`).then(r => r.text());
+        const temp = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v1`).then(r => r.text());
+        const press = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v2`).then(r => r.text());
+        const hum = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v3`).then(r => r.text());
 
         document.getElementById('temp').textContent = `Temperatura: ${temp} °C`;
         document.getElementById('press').textContent = `Ciśnienie: ${press} hPa`;
         document.getElementById('hum').textContent = `Wilgotność: ${hum} %`;
-
-        aktualizujWykres(temp, tempHistoria, wykresTemp);
-        aktualizujWykres(press, pressHistoria, wykresPress);
-        aktualizujWykres(hum, humHistoria, wykresHum);
       } catch (e) {
-        console.error('Błąd pobierania danych:', e);
+        document.getElementById('temp').textContent = `Błąd pobierania danych`;
+        document.getElementById('press').textContent = `Błąd pobierania danych`;
+        document.getElementById('hum').textContent = `Błąd pobierania danych`;
+        console.error("Błąd:", e);
       }
     }
 
-    setInterval(odswiezDane, 600000); // Odświeżaj dane co 10 minut (600 000 ms)
-    odswiezDane(); // Pierwsze pobranie danych
+    odswiezDane();
+    setInterval(odswiezDane, 600000); // 10 minut
   </script>
 </body>
 </html>
