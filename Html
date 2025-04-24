@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Stacja Pogodowa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin: 30px 0 20px;
+      font-size: 2rem;
+      color: #00bcd4;
+    }
+
+    .karta {
+      background: #1e1e1e;
+      border-radius: 20px;
+      padding: 25px 35px;
+      margin: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .karta:hover {
+      transform: scale(1.03);
+    }
+
+    .ikona {
+      font-size: 2.2em;
+      margin-bottom: 10px;
+      color: #00bcd4;
+    }
+
+    .etykieta {
+      font-size: 1.1em;
+      color: #cccccc;
+    }
+
+    .wartosc {
+      font-size: 2.2em;
+      margin-top: 5px;
+      color: #ffcc00;
+      opacity: 0;
+      animation: fadeIn 1s forwards;
+    }
+
+    footer {
+      margin: 40px 0;
+      font-size: 0.9em;
+      color: #777;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Stacja Pogodowa</h1>
+
+  <div class="karta">
+    <div class="ikona"><i class="fas fa-thermometer-half"></i></div>
+    <div class="etykieta">Temperatura</div>
+    <div class="wartosc" id="temp">...</div>
+  </div>
+
+  <div class="karta">
+    <div class="ikona"><i class="fas fa-tachometer-alt"></i></div>
+    <div class="etykieta">Ciśnienie</div>
+    <div class="wartosc" id="press">...</div>
+  </div>
+
+  <div class="karta">
+    <div class="ikona"><i class="fas fa-tint"></i></div>
+    <div class="etykieta">Wilgotność</div>
+    <div class="wartosc" id="hum">...</div>
+  </div>
+
+  <footer>© Twoja Stacja Blynk</footer>
+
+  <script>
+    const token = '_O5rM65Y3601TBQj8_liz3kTfPEk5S1D';
+
+    async function odswiezDane() {
+      try {
+        const temp = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v1`).then(r => r.text());
+        const press = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v2`).then(r => r.text());
+        const hum = await fetch(`https://blynk.cloud/external/api/get?token=${token}&v3`).then(r => r.text());
+
+        document.getElementById('temp').textContent = `${temp} °C`;
+        document.getElementById('press').textContent = `${press} hPa`;
+        document.getElementById('hum').textContent = `${hum} %`;
+      } catch (e) {
+        console.error('Błąd pobierania danych:', e);
+      }
+    }
+
+    setInterval(odswiezDane, 300000); // co 5 minut
+    odswiezDane(); // pierwsze pobranie od razu
+  </script>
+</body>
+</html>
