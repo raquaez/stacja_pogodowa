@@ -1,122 +1,93 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Stacja Pogodowa z Wykresami</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      background-color: #121212;
-      color: #ffffff;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      text-align: center;
-    }
-    h1 {
-      margin-bottom: 30px;
-    }
-    .dane {
-      font-size: 1.3em;
-      margin: 10px 0;
-    }
-    canvas {
-      background-color: #1e1e1e;
-      border-radius: 10px;
-      margin: 20px 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stacja Pogodowa ESP32</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
 </head>
 <body>
-  <h1>Stacja Pogodowa</h1>
+    <h1>Aktualne dane z czujników</h1>
+    
+    <div>
+        <h2>Temperatura</h2>
+        <p id="temp">Ładowanie...</p>
+    </div>
+    <div>
+        <h2>Wilgotność</h2>
+        <p id="humidity">Ładowanie...</p>
+    </div>
+    <div>
+        <h2>Ciśnienie</h2>
+        <p id="pressure">Ładowanie...</p>
+    </div>
+    <div>
+        <h2>Średnia Temperatura</h2>
+        <p id="avgTemp">Ładowanie...</p>
+    </div>
 
-  <div class="dane" id="temp">Temperatura: Ładowanie...</div>
-  <div class="dane" id="press">Ciśnienie: Ładowanie...</div>
-  <div class="dane" id="hum">Wilgotność: Ładowanie...</div>
+    <script>
+        // Konfiguracja Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
+            authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
+            databaseURL: "https://stacja-pogodowa-esp32-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "stacja-pogodowa-esp32",
+            storageBucket: "stacja-pogodowa-esp32.appspot.com",
+            messagingSenderId: "your_sender_id",
+            appId: "your_app_id"
+        };
 
-  <canvas id="chartTemp" width="400" height="200"></canvas>
-  <canvas id="chartPress" width="400" height="200"></canvas>
-  <canvas id="chartHum" width="400" height="200"></canvas>
+        // Inicjalizacja Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database(app);
 
-  <script>
-    const token = "_O5rM65Y3601TBQj8_liz3kTfPEk5S1D";
-    const apiBase = `https://blynk.cloud/external/api/get?token=${token}`;
-    const maxPoints = 10;
-    const timeLabels = [];
+        // Tablica do przechowywania wartości temperatury
+        let temperatureData = [];
 
-    const createChart = (ctxId, label, color) => {
-      const ctx = document.getElementById(ctxId).getContext('2d');
-      return new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: timeLabels,
-          datasets: [{
-            label: label,
-            data: [],
-            borderColor: color,
-            backgroundColor: color + "33",
-            borderWidth: 2,
-            tension: 0.4
-          }]
-        },
-        options: {
-          scales: {
-            y: { beginAtZero: false },
-            x: { ticks: { color: '#ccc' } }
-          },
-          plugins: {
-            legend: { labels: { color: '#ccc' } }
-          }
+        // Funkcja do pobierania danych z Firebase
+        function updateData() {
+            // Pobieranie temperatury
+            const tempRef = database.ref('/sensors/temperature_avg');
+            tempRef.once('value', function(snapshot) {
+                const temperature = snapshot.val(); // Odczytujemy temperaturę
+                document.getElementById('temp').innerText = `Temperatura: ${temperature}°C`;
+
+                // Dodawanie temperatury do tablicy
+                temperatureData.push(temperature);
+
+                // Jeśli mamy więcej niż 10 wartości, usuwamy najstarsze
+                if (temperatureData.length > 10) {
+                    temperatureData.shift();
+                }
+
+                // Obliczanie średniej temperatury
+                const avgTemperature = temperatureData.reduce((acc, val) => acc + val, 0) / temperatureData.length;
+                document.getElementById('avgTemp').innerText = `Średnia Temperatura: ${avgTemperature.toFixed(2)}°C`;
+            });
+
+            // Pobieranie wilgotności
+            const humidityRef = database.ref('/sensors/humidity');
+            humidityRef.once('value', function(snapshot) {
+                const humidity = snapshot.val();
+                document.getElementById('humidity').innerText = `Wilgotność: ${humidity}%`;
+            });
+
+            // Pobieranie ciśnienia
+            const pressureRef = database.ref('/sensors/pressure');
+            pressureRef.once('value', function(snapshot) {
+                const pressure = snapshot.val();
+                document.getElementById('pressure').innerText = `Ciśnienie: ${pressure} hPa`;
+            });
         }
-      });
-    };
 
-    const chartTemp = createChart("chartTemp", "Temperatura (°C)", "#00bcd4");
-    const chartPress = createChart("chartPress", "Ciśnienie (hPa)", "#ff6384");
-    const chartHum = createChart("chartHum", "Wilgotność (%)", "#9966ff");
+        // Aktualizowanie danych co minutę
+        setInterval(updateData, 60000); // Co minutę
 
-    async function pobierz(pin) {
-      const res = await fetch(`${apiBase}&${pin}`);
-      return await res.text();
-    }
-
-    async function aktualizujDane() {
-      try {
-        const [temp, press, hum] = await Promise.all([
-          pobierz("v1"),
-          pobierz("v2"),
-          pobierz("v3")
-        ]);
-
-        document.getElementById('temp').textContent = `Temperatura: ${temp} °C`;
-        document.getElementById('press').textContent = `Ciśnienie: ${press} hPa`;
-        document.getElementById('hum').textContent = `Wilgotność: ${hum} %`;
-
-        const now = new Date();
-        const label = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-        if (timeLabels.length >= maxPoints) {
-          timeLabels.shift();
-          chartTemp.data.datasets[0].data.shift();
-          chartPress.data.datasets[0].data.shift();
-          chartHum.data.datasets[0].data.shift();
-        }
-
-        timeLabels.push(label);
-        chartTemp.data.datasets[0].data.push(parseFloat(temp));
-        chartPress.data.datasets[0].data.push(parseFloat(press));
-        chartHum.data.datasets[0].data.push(parseFloat(hum));
-
-        chartTemp.update();
-        chartPress.update();
-        chartHum.update();
-      } catch (err) {
-        console.error("Błąd:", err);
-      }
-    }
-
-    aktualizujDane();
-    setInterval(aktualizujDane, 600000); // 10 minut
-  </script>
+        // Wywołanie po raz pierwszy, aby pobrać dane
+        updateData();
+    </script>
 </body>
 </html>
