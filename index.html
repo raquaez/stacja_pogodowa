@@ -6,7 +6,25 @@
   <title>Stacja pogodowa ESP32</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Twoje style CSS */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f4;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .chart-container {
+      background: white;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
@@ -21,7 +39,6 @@
     </ul>
   </div>
 
-  <!-- Wykresy -->
   <div class="chart-container">
     <canvas id="temperatureChart"></canvas>
   </div>
@@ -36,7 +53,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, onValue, set, push, get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-    // Konfiguracja Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
       authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
@@ -51,8 +67,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Zmienna do przechowywania danych
-    let temperatureData = {
+    const temperatureData = {
       labels: [],
       datasets: [{
         label: "Temperatura (°C)",
@@ -64,7 +79,7 @@
       }]
     };
 
-    let humidityData = {
+    const humidityData = {
       labels: [],
       datasets: [{
         label: "Wilgotność (%)",
@@ -76,7 +91,7 @@
       }]
     };
 
-    let pressureData = {
+    const pressureData = {
       labels: [],
       datasets: [{
         label: "Ciśnienie (hPa)",
@@ -88,69 +103,56 @@
       }]
     };
 
-    // Funkcja do zaktualizowania wykresów
+    let temperatureChart, humidityChart, pressureChart;
+
     const updateChart = () => {
       const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
       const humidityCtx = document.getElementById('humidityChart').getContext('2d');
       const pressureCtx = document.getElementById('pressureChart').getContext('2d');
 
-      // Wykres temperatury
-      new Chart(temperatureCtx, {
+      if (temperatureChart) temperatureChart.destroy();
+      if (humidityChart) humidityChart.destroy();
+      if (pressureChart) pressureChart.destroy();
+
+      temperatureChart = new Chart(temperatureCtx, {
         type: 'line',
         data: temperatureData,
         options: {
           scales: {
-            x: { 
-              title: { display: true, text: 'Czas' }
-            },
-            y: {
-              title: { display: true, text: 'Temperatura (°C)' }
-            }
+            x: { title: { display: true, text: 'Czas' } },
+            y: { title: { display: true, text: 'Temperatura (°C)' }, min: 0, max: 40 }
           }
         }
       });
 
-      // Wykres wilgotności
-      new Chart(humidityCtx, {
+      humidityChart = new Chart(humidityCtx, {
         type: 'line',
         data: humidityData,
         options: {
           scales: {
-            x: { 
-              title: { display: true, text: 'Czas' }
-            },
-            y: {
-              title: { display: true, text: 'Wilgotność (%)' }
-            }
+            x: { title: { display: true, text: 'Czas' } },
+            y: { title: { display: true, text: 'Wilgotność (%)' }, min: 0, max: 100 }
           }
         }
       });
 
-      // Wykres ciśnienia
-      new Chart(pressureCtx, {
+      pressureChart = new Chart(pressureCtx, {
         type: 'line',
         data: pressureData,
         options: {
           scales: {
-            x: { 
-              title: { display: true, text: 'Czas' }
-            },
-            y: {
-              title: { display: true, text: 'Ciśnienie (hPa)' }
-            }
+            x: { title: { display: true, text: 'Czas' } },
+            y: { title: { display: true, text: 'Ciśnienie (hPa)' } }
           }
         }
       });
     };
 
-    // Odczyt danych z Firebase
     window.addEventListener("DOMContentLoaded", () => {
       const path = ref(db, "sensors");
       const historyPath = ref(db, "sensor_history");
+      const el = id => document.getElementById(id);
 
-      const el = (id) => document.getElementById(id);
-      
-      // Odczyt danych z Firebase (aktualne dane)
       onValue(path, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -160,22 +162,24 @@
           el("temperature_bmp").textContent = data.temperature_bmp + " °C";
           el("temperature_dht").textContent = data.temperature_dht + " °C";
 
-          // Dodanie nowych danych do wykresów
           let currentTime = new Date().toLocaleTimeString();
 
-          // Dodanie nowych danych do temperatury
+          // Zaokrąglenie do całkowitych liczb
+          let roundedTemp = Math.round(data.temperature_avg);
+          let roundedHumidity = Math.round(data.humidity);
+          let roundedPressure = Math.round(data.pressure);
+
+          // Dodanie nowych danych do wykresu
           temperatureData.labels.push(currentTime);
-          temperatureData.datasets[0].data.push(data.temperature_avg);
+          temperatureData.datasets[0].data.push(roundedTemp);
 
-          // Dodanie nowych danych do wilgotności
           humidityData.labels.push(currentTime);
-          humidityData.datasets[0].data.push(data.humidity);
+          humidityData.datasets[0].data.push(roundedHumidity);
 
-          // Dodanie nowych danych do ciśnienia
           pressureData.labels.push(currentTime);
-          pressureData.datasets[0].data.push(data.pressure);
+          pressureData.datasets[0].data.push(roundedPressure);
 
-          // Usuwanie danych, które są starsze niż 10 punktów
+          // Usuwanie danych, jeśli jest ich więcej niż 10
           if (temperatureData.labels.length > 10) {
             temperatureData.labels.shift();
             temperatureData.datasets[0].data.shift();
@@ -189,10 +193,8 @@
             pressureData.datasets[0].data.shift();
           }
 
-          // Zaktualizowanie wykresów
           updateChart();
 
-          // Dodanie danych do sensor_history w Firebase
           const newHistoryRef = push(historyPath);
           set(newHistoryRef, {
             timestamp: new Date().toISOString(),
@@ -205,28 +207,29 @@
         }
       });
 
-      // Odczyt danych historycznych
       get(historyPath).then((snapshot) => {
         const historyData = snapshot.val();
         if (historyData) {
-          // Dodaj historyczne dane do wykresów
-          for (let entry of historyData) {
+          for (let key in historyData) {
+            let entry = historyData[key];
             let timestamp = new Date(entry.timestamp).toLocaleTimeString();
 
-            // Dodaj do temperatury
+            // Zaokrąglenie do całkowitych liczb
+            let roundedTemp = Math.round(entry.temperature_avg);
+            let roundedHumidity = Math.round(entry.humidity);
+            let roundedPressure = Math.round(entry.pressure);
+
+            // Dodanie danych historycznych do wykresu
             temperatureData.labels.push(timestamp);
-            temperatureData.datasets[0].data.push(entry.temperature_avg);
+            temperatureData.datasets[0].data.push(roundedTemp);
 
-            // Dodaj do wilgotności
             humidityData.labels.push(timestamp);
-            humidityData.datasets[0].data.push(entry.humidity);
+            humidityData.datasets[0].data.push(roundedHumidity);
 
-            // Dodaj do ciśnienia
             pressureData.labels.push(timestamp);
-            pressureData.datasets[0].data.push(entry.pressure);
+            pressureData.datasets[0].data.push(roundedPressure);
           }
 
-          // Zaktualizowanie wykresów z historycznymi danymi
           updateChart();
         }
       });
