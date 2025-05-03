@@ -4,15 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stacja pogodowa ESP32</title>
+  <link href="https://cdn.jsdelivr.net/npm/chart.js" rel="stylesheet">
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(to right, #e0f7fa, #e0f2f1);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
       margin: 0;
+      padding: 0;
     }
 
     .card {
@@ -20,9 +23,10 @@
       padding: 30px 40px;
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
+      max-width: 500px;
       width: 90%;
       text-align: center;
+      margin-bottom: 20px;
     }
 
     h1 {
@@ -54,11 +58,36 @@
     #temperature_avg,
     #temperature_bmp,
     #temperature_dht { color: #e53935; }
+
+    .chart-container {
+      width: 100%;
+      max-width: 600px;
+      margin-top: 30px;
+    }
   </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Dane pogodowe</h1>
+    <ul>
+      <li>Wilgotność: <span id="humidity">...</span></li>
+      <li>Ciśnienie: <span id="pressure">...</span></li>
+      <li>Śr. temperatura: <span id="temperature_avg">...</span></li>
+      <li>Temp. BMP: <span id="temperature_bmp">...</span></li>
+      <li>Temp. DHT: <span id="temperature_dht">...</span></li>
+    </ul>
+  </div>
+
+  <!-- Wykresy -->
+  <div class="chart-container">
+    <canvas id="temperatureChart"></canvas>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
+    // Konfiguracja Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
       authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
@@ -77,7 +106,21 @@
       const path = ref(db, "sensors");
 
       const el = (id) => document.getElementById(id);
+      
+      // Zmienna przechowująca dane do wykresu
+      let temperatureData = {
+        labels: [],
+        datasets: [{
+          label: "Temperatura (°C)",
+          data: [],
+          borderColor: "#FF5733",
+          backgroundColor: "rgba(255, 87, 51, 0.2)",
+          fill: true,
+          tension: 0.4
+        }]
+      };
 
+      // Odczyt danych z Firebase
       onValue(path, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -86,21 +129,46 @@
           el("temperature_avg").textContent = data.temperature_avg + " °C";
           el("temperature_bmp").textContent = data.temperature_bmp + " °C";
           el("temperature_dht").textContent = data.temperature_dht + " °C";
+
+          // Dodanie nowych danych do wykresu (jeśli dane temperatury zmieniają się)
+          let currentTime = new Date().toLocaleTimeString();
+          temperatureData.labels.push(currentTime);
+          temperatureData.datasets[0].data.push(data.temperature_avg);
+
+          // Jeśli danych jest za dużo (więcej niż 10), usuń najstarsze
+          if (temperatureData.labels.length > 10) {
+            temperatureData.labels.shift();
+            temperatureData.datasets[0].data.shift();
+          }
+
+          // Renderowanie wykresu
+          const ctx = document.getElementById('temperatureChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'line',
+            data: temperatureData,
+            options: {
+              scales: {
+                x: {
+                  type: 'category',
+                  title: {
+                    display: true,
+                    text: 'Czas'
+                  }
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Temperatura (°C)'
+                  }
+                }
+              },
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          });
         }
       });
     });
   </script>
-</head>
-<body>
-  <div class="card">
-    <h1>Dane pogodowe</h1>
-    <ul>
-      <li>Wilgotność: <span id="humidity">...</span></li>
-      <li>Ciśnienie: <span id="pressure">...</span></li>
-      <li>Śr. temperatura: <span id="temperature_avg">...</span></li>
-      <li>Temp. BMP: <span id="temperature_bmp">...</span></li>
-      <li>Temp. DHT: <span id="temperature_dht">...</span></li>
-    </ul>
-  </div>
 </body>
 </html>
