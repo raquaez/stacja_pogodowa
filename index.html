@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stacja pogodowa ESP32</title>
-  <link href="https://cdn.jsdelivr.net/npm/chart.js" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -55,9 +55,7 @@
 
     #humidity { color: #0277bd; }
     #pressure { color: #5d4037; }
-    #temperature_avg,
-    #temperature_bmp,
-    #temperature_dht { color: #e53935; }
+    #temperature_avg, #temperature_bmp, #temperature_dht { color: #e53935; }
 
     .chart-container {
       width: 100%;
@@ -82,10 +80,16 @@
   <div class="chart-container">
     <canvas id="temperatureChart"></canvas>
   </div>
+  <div class="chart-container">
+    <canvas id="humidityChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <canvas id="pressureChart"></canvas>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
     // Konfiguracja Firebase
     const firebaseConfig = {
@@ -103,10 +107,11 @@
     const db = getDatabase(app);
 
     window.addEventListener("DOMContentLoaded", () => {
-      const path = ref(db, "sensors");
+      const sensorsPath = ref(db, "sensors");
+      const historyPath = ref(db, "sensor_history");
 
       const el = (id) => document.getElementById(id);
-      
+
       // Zmienna przechowująca dane do wykresu
       let temperatureData = {
         labels: [],
@@ -120,8 +125,32 @@
         }]
       };
 
+      let humidityData = {
+        labels: [],
+        datasets: [{
+          label: "Wilgotność (%)",
+          data: [],
+          borderColor: "#0277bd",
+          backgroundColor: "rgba(2, 119, 189, 0.2)",
+          fill: true,
+          tension: 0.4
+        }]
+      };
+
+      let pressureData = {
+        labels: [],
+        datasets: [{
+          label: "Ciśnienie (hPa)",
+          data: [],
+          borderColor: "#5d4037",
+          backgroundColor: "rgba(93, 64, 55, 0.2)",
+          fill: true,
+          tension: 0.4
+        }]
+      };
+
       // Odczyt danych z Firebase
-      onValue(path, (snapshot) => {
+      onValue(sensorsPath, (snapshot) => {
         const data = snapshot.val();
         if (data) {
           el("humidity").textContent = data.humidity + " %";
@@ -134,16 +163,33 @@
           let currentTime = new Date().toLocaleTimeString();
           temperatureData.labels.push(currentTime);
           temperatureData.datasets[0].data.push(data.temperature_avg);
+          humidityData.labels.push(currentTime);
+          humidityData.datasets[0].data.push(data.humidity);
+          pressureData.labels.push(currentTime);
+          pressureData.datasets[0].data.push(data.pressure);
 
           // Jeśli danych jest za dużo (więcej niż 10), usuń najstarsze
           if (temperatureData.labels.length > 10) {
             temperatureData.labels.shift();
             temperatureData.datasets[0].data.shift();
+            humidityData.labels.shift();
+            humidityData.datasets[0].data.shift();
+            pressureData.labels.shift();
+            pressureData.datasets[0].data.shift();
           }
 
-          // Renderowanie wykresu
-          const ctx = document.getElementById('temperatureChart').getContext('2d');
-          new Chart(ctx, {
+          // Zapisanie aktualnych danych do historii w Firebase
+          const newHistoryRef = push(historyPath);
+          set(newHistoryRef, {
+            temperature_avg: data.temperature_avg,
+            humidity: data.humidity,
+            pressure: data.pressure,
+            timestamp: new Date().toISOString() // Stempel czasowy dla historii
+          });
+
+          // Renderowanie wykresów
+          const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
+          new Chart(temperatureCtx, {
             type: 'line',
             data: temperatureData,
             options: {
@@ -165,6 +211,73 @@
               responsive: true,
               maintainAspectRatio: false
             }
+          });
+
+          const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+          new Chart(humidityCtx, {
+            type: 'line',
+            data: humidityData,
+            options: {
+              scales: {
+                x: {
+                  type: 'category',
+                  title: {
+                    display: true,
+                    text: 'Czas'
+                  }
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Wilgotność (%)'
+                  }
+                }
+              },
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          });
+
+          const pressureCtx = document.getElementById('pressureChart').getContext('2d');
+          new Chart(pressureCtx, {
+            type: 'line',
+            data: pressureData,
+            options: {
+              scales: {
+                x: {
+                  type: 'category',
+                  title: {
+                    display: true,
+                    text: 'Czas'
+                  }
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Ciśnienie (hPa)'
+                  }
+                }
+              },
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          });
+        }
+      });
+
+      // Odczyt historii danych z Firebase (dla wcześniejszych temperatur)
+      onValue(historyPath, (snapshot) => {
+        const historyData = snapshot.val();
+        if (historyData) {
+          Object.values(historyData).forEach((entry) => {
+            // Dodajemy dane historyczne do wykresu
+            let timestamp = new Date(entry.timestamp).toLocaleTimeString();
+            temperatureData.labels.push(timestamp);
+            temperatureData.datasets[0].data.push(entry.temperature_avg);
+            humidityData.labels.push(timestamp);
+            humidityData.datasets[0].data.push(entry.humidity);
+            pressureData.labels.push(timestamp);
+            pressureData.datasets[0].data.push(entry.pressure);
           });
         }
       });
