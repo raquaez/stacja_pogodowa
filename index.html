@@ -1,93 +1,52 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stacja Pogodowa ESP32</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+  <meta charset="UTF-8">
+  <title>Stacja pogodowa ESP32</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
+      authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
+      databaseURL: "https://stacja-pogodowa-esp32-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "stacja-pogodowa-esp32",
+      storageBucket: "stacja-pogodowa-esp32.firebasestorage.app",
+      messagingSenderId: "327741512746",
+      appId: "1:327741512746:web:fa70dae8116eed4ad93753",
+      measurementId: "G-BHD64LQKBD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const path = ref(db, "sensors");
+
+      const el = (id) => document.getElementById(id);
+
+      onValue(path, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          el("humidity").textContent = data.humidity + " %";
+          el("pressure").textContent = data.pressure + " hPa";
+          el("temperature_avg").textContent = data.temperature_avg + " °C";
+          el("temperature_bmp").textContent = data.temperature_bmp + " °C";
+          el("temperature_dht").textContent = data.temperature_dht + " °C";
+        }
+      });
+    });
+  </script>
 </head>
 <body>
-    <h1>Aktualne dane z czujników</h1>
-    
-    <div>
-        <h2>Temperatura</h2>
-        <p id="temp">Ładowanie...</p>
-    </div>
-    <div>
-        <h2>Wilgotność</h2>
-        <p id="humidity">Ładowanie...</p>
-    </div>
-    <div>
-        <h2>Ciśnienie</h2>
-        <p id="pressure">Ładowanie...</p>
-    </div>
-    <div>
-        <h2>Średnia Temperatura</h2>
-        <p id="avgTemp">Ładowanie...</p>
-    </div>
-
-    <script>
-        // Konfiguracja Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
-            authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
-            databaseURL: "https://stacja-pogodowa-esp32-default-rtdb.europe-west1.firebasedatabase.app/",
-            projectId: "stacja-pogodowa-esp32",
-            storageBucket: "stacja-pogodowa-esp32.appspot.com",
-            messagingSenderId: "your_sender_id",
-            appId: "your_app_id"
-        };
-
-        // Inicjalizacja Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database(app);
-
-        // Tablica do przechowywania wartości temperatury
-        let temperatureData = [];
-
-        // Funkcja do pobierania danych z Firebase
-        function updateData() {
-            // Pobieranie temperatury
-            const tempRef = database.ref('/sensors/temperature_avg');
-            tempRef.once('value', function(snapshot) {
-                const temperature = snapshot.val(); // Odczytujemy temperaturę
-                document.getElementById('temp').innerText = `Temperatura: ${temperature}°C`;
-
-                // Dodawanie temperatury do tablicy
-                temperatureData.push(temperature);
-
-                // Jeśli mamy więcej niż 10 wartości, usuwamy najstarsze
-                if (temperatureData.length > 10) {
-                    temperatureData.shift();
-                }
-
-                // Obliczanie średniej temperatury
-                const avgTemperature = temperatureData.reduce((acc, val) => acc + val, 0) / temperatureData.length;
-                document.getElementById('avgTemp').innerText = `Średnia Temperatura: ${avgTemperature.toFixed(2)}°C`;
-            });
-
-            // Pobieranie wilgotności
-            const humidityRef = database.ref('/sensors/humidity');
-            humidityRef.once('value', function(snapshot) {
-                const humidity = snapshot.val();
-                document.getElementById('humidity').innerText = `Wilgotność: ${humidity}%`;
-            });
-
-            // Pobieranie ciśnienia
-            const pressureRef = database.ref('/sensors/pressure');
-            pressureRef.once('value', function(snapshot) {
-                const pressure = snapshot.val();
-                document.getElementById('pressure').innerText = `Ciśnienie: ${pressure} hPa`;
-            });
-        }
-
-        // Aktualizowanie danych co minutę
-        setInterval(updateData, 60000); // Co minutę
-
-        // Wywołanie po raz pierwszy, aby pobrać dane
-        updateData();
-    </script>
+  <h1>Dane ze stacji pogodowej ESP32</h1>
+  <ul>
+    <li>Wilgotność: <span id="humidity">...</span></li>
+    <li>Ciśnienie: <span id="pressure">...</span></li>
+    <li>Średnia temperatura: <span id="temperature_avg">...</span></li>
+    <li>Temperatura BMP: <span id="temperature_bmp">...</span></li>
+    <li>Temperatura DHT: <span id="temperature_dht">...</span></li>
+  </ul>
 </body>
 </html>
