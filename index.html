@@ -1,8 +1,60 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Stacja pogodowa ESP32</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e0f2f1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 25px;
+      color: #00796b;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      font-size: 1.2em;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+    }
+
+    span {
+      font-weight: bold;
+    }
+
+    #humidity { color: #0277bd; }
+    #pressure { color: #5d4037; }
+    #temperature_avg,
+    #temperature_bmp,
+    #temperature_dht { color: #e53935; }
+  </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
@@ -12,7 +64,7 @@
       authDomain: "stacja-pogodowa-esp32.firebaseapp.com",
       databaseURL: "https://stacja-pogodowa-esp32-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "stacja-pogodowa-esp32",
-      storageBucket: "stacja-pogodowa-esp32.firebasestorage.app",
+      storageBucket: "stacja-pogodowa-esp32.appspot.com",
       messagingSenderId: "327741512746",
       appId: "1:327741512746:web:fa70dae8116eed4ad93753",
       measurementId: "G-BHD64LQKBD"
@@ -40,13 +92,15 @@
   </script>
 </head>
 <body>
-  <h1>Dane ze stacji pogodowej ESP32</h1>
-  <ul>
-    <li>Wilgotność: <span id="humidity">...</span></li>
-    <li>Ciśnienie: <span id="pressure">...</span></li>
-    <li>Średnia temperatura: <span id="temperature_avg">...</span></li>
-    <li>Temperatura BMP: <span id="temperature_bmp">...</span></li>
-    <li>Temperatura DHT: <span id="temperature_dht">...</span></li>
-  </ul>
+  <div class="card">
+    <h1>Dane pogodowe</h1>
+    <ul>
+      <li>Wilgotność: <span id="humidity">...</span></li>
+      <li>Ciśnienie: <span id="pressure">...</span></li>
+      <li>Śr. temperatura: <span id="temperature_avg">...</span></li>
+      <li>Temp. BMP: <span id="temperature_bmp">...</span></li>
+      <li>Temp. DHT: <span id="temperature_dht">...</span></li>
+    </ul>
+  </div>
 </body>
 </html>
