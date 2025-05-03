@@ -6,24 +6,54 @@
   <title>Stacja pogodowa ESP32</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    :root {
+      --bg: #1e1e2f;
+      --card: #2e2e3e;
+      --text: #ffffff;
+      --accent: #4fc3f7;
+      --border-radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: #f4f4f4;
-    }
-    .card {
-      background: white;
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
       padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    .card {
+      background-color: var(--card);
+      padding: 20px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
       margin-bottom: 20px;
     }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      line-height: 1.8;
+    }
+
     .chart-container {
-      background: white;
-      padding: 10px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-color: var(--card);
+      padding: 15px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
       margin-bottom: 20px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
     }
   </style>
 </head>
@@ -39,19 +69,13 @@
     </ul>
   </div>
 
-  <div class="chart-container">
-    <canvas id="temperatureChart"></canvas>
-  </div>
-  <div class="chart-container">
-    <canvas id="humidityChart"></canvas>
-  </div>
-  <div class="chart-container">
-    <canvas id="pressureChart"></canvas>
-  </div>
+  <div class="chart-container"><canvas id="temperatureChart"></canvas></div>
+  <div class="chart-container"><canvas id="humidityChart"></canvas></div>
+  <div class="chart-container"><canvas id="pressureChart"></canvas></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getDatabase, ref, onValue, set, push, get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+    import { getDatabase, ref, onValue, push, set, get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB0dApYE4FO5vQeTL1fPwvqoa8GVaY9kN0",
@@ -60,178 +84,103 @@
       projectId: "stacja-pogodowa-esp32",
       storageBucket: "stacja-pogodowa-esp32.appspot.com",
       messagingSenderId: "327741512746",
-      appId: "1:327741512746:web:fa70dae8116eed4ad93753",
-      measurementId: "G-BHD64LQKBD"
+      appId: "1:327741512746:web:fa70dae8116eed4ad93753"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    const temperatureData = {
-      labels: [],
-      datasets: [{
-        label: "Temperatura (°C)",
-        data: [],
-        borderColor: "#FF5733",
-        backgroundColor: "rgba(255, 87, 51, 0.2)",
-        fill: true,
-        tension: 0.4
-      }]
-    };
-
-    const humidityData = {
-      labels: [],
-      datasets: [{
-        label: "Wilgotność (%)",
-        data: [],
-        borderColor: "#0277bd",
-        backgroundColor: "rgba(2, 119, 189, 0.2)",
-        fill: true,
-        tension: 0.4
-      }]
-    };
-
-    const pressureData = {
-      labels: [],
-      datasets: [{
-        label: "Ciśnienie (hPa)",
-        data: [],
-        borderColor: "#5d4037",
-        backgroundColor: "rgba(93, 64, 55, 0.2)",
-        fill: true,
-        tension: 0.4
-      }]
-    };
-
-    let temperatureChart, humidityChart, pressureChart;
-
-    const updateChart = () => {
-      const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
-      const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-      const pressureCtx = document.getElementById('pressureChart').getContext('2d');
-
-      if (temperatureChart) temperatureChart.destroy();
-      if (humidityChart) humidityChart.destroy();
-      if (pressureChart) pressureChart.destroy();
-
-      temperatureChart = new Chart(temperatureCtx, {
-        type: 'line',
-        data: temperatureData,
+    const createChart = (ctx, label, color, yMin, yMax) => {
+      return new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: color,
+            backgroundColor: color + "22",
+            borderWidth: 1,
+            fill: true,
+            tension: 0.3
+          }]
+        },
         options: {
           scales: {
-            x: { title: { display: true, text: 'Czas' } },
-            y: { title: { display: true, text: 'Temperatura (°C)' }, min: 0, max: 40 }
-          }
-        }
-      });
-
-      humidityChart = new Chart(humidityCtx, {
-        type: 'line',
-        data: humidityData,
-        options: {
-          scales: {
-            x: { title: { display: true, text: 'Czas' } },
-            y: { title: { display: true, text: 'Wilgotność (%)' }, min: 0, max: 100 }
-          }
-        }
-      });
-
-      pressureChart = new Chart(pressureCtx, {
-        type: 'line',
-        data: pressureData,
-        options: {
-          scales: {
-            x: { title: { display: true, text: 'Czas' } },
-            y: { title: { display: true, text: 'Ciśnienie (hPa)' } }
-          }
+            x: { title: { display: true, text: "Czas" } },
+            y: {
+              title: { display: true, text: label },
+              min: yMin,
+              max: yMax
+            }
+          },
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false
         }
       });
     };
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const path = ref(db, "sensors");
-      const historyPath = ref(db, "sensor_history");
-      const el = id => document.getElementById(id);
+    const tempCtx = document.getElementById("temperatureChart").getContext("2d");
+    const humCtx = document.getElementById("humidityChart").getContext("2d");
+    const presCtx = document.getElementById("pressureChart").getContext("2d");
 
-      onValue(path, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          el("humidity").textContent = data.humidity + " %";
-          el("pressure").textContent = data.pressure + " hPa";
-          el("temperature_avg").textContent = data.temperature_avg + " °C";
-          el("temperature_bmp").textContent = data.temperature_bmp + " °C";
-          el("temperature_dht").textContent = data.temperature_dht + " °C";
+    const temperatureChart = createChart(tempCtx, "Temperatura (°C)", "#ff7043", 0, 40);
+    const humidityChart = createChart(humCtx, "Wilgotność (%)", "#4fc3f7", 0, 100);
+    const pressureChart = createChart(presCtx, "Ciśnienie (hPa)", "#a1887f", 950, 1050);
 
-          let currentTime = new Date().toLocaleTimeString();
+    const el = id => document.getElementById(id);
+    const maxPoints = 10;
 
-          // Zaokrąglenie do całkowitych liczb
-          let roundedTemp = Math.round(data.temperature_avg);
-          let roundedHumidity = Math.round(data.humidity);
-          let roundedPressure = Math.round(data.pressure);
+    function addData(chart, label, value) {
+      chart.data.labels.push(label);
+      chart.data.datasets[0].data.push(Math.round(value));
+      if (chart.data.labels.length > maxPoints) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+      chart.update();
+    }
 
-          // Dodanie nowych danych do wykresu
-          temperatureData.labels.push(currentTime);
-          temperatureData.datasets[0].data.push(roundedTemp);
+    const currentRef = ref(db, "sensors");
+    const historyRef = ref(db, "sensor_history");
 
-          humidityData.labels.push(currentTime);
-          humidityData.datasets[0].data.push(roundedHumidity);
+    onValue(currentRef, snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
 
-          pressureData.labels.push(currentTime);
-          pressureData.datasets[0].data.push(roundedPressure);
+      el("humidity").textContent = Math.round(data.humidity) + " %";
+      el("pressure").textContent = Math.round(data.pressure) + " hPa";
+      el("temperature_avg").textContent = Math.round(data.temperature_avg) + " °C";
+      el("temperature_bmp").textContent = Math.round(data.temperature_bmp) + " °C";
+      el("temperature_dht").textContent = Math.round(data.temperature_dht) + " °C";
 
-          // Usuwanie danych, jeśli jest ich więcej niż 10
-          if (temperatureData.labels.length > 10) {
-            temperatureData.labels.shift();
-            temperatureData.datasets[0].data.shift();
-          }
-          if (humidityData.labels.length > 10) {
-            humidityData.labels.shift();
-            humidityData.datasets[0].data.shift();
-          }
-          if (pressureData.labels.length > 10) {
-            pressureData.labels.shift();
-            pressureData.datasets[0].data.shift();
-          }
+      const time = new Date().toLocaleTimeString();
 
-          updateChart();
+      addData(temperatureChart, time, data.temperature_avg);
+      addData(humidityChart, time, data.humidity);
+      addData(pressureChart, time, data.pressure);
 
-          const newHistoryRef = push(historyPath);
-          set(newHistoryRef, {
-            timestamp: new Date().toISOString(),
-            humidity: data.humidity,
-            pressure: data.pressure,
-            temperature_avg: data.temperature_avg,
-            temperature_bmp: data.temperature_bmp,
-            temperature_dht: data.temperature_dht
-          });
-        }
+      const newEntry = push(historyRef);
+      set(newEntry, {
+        timestamp: new Date().toISOString(),
+        humidity: data.humidity,
+        pressure: data.pressure,
+        temperature_avg: data.temperature_avg,
+        temperature_bmp: data.temperature_bmp,
+        temperature_dht: data.temperature_dht
       });
+    });
 
-      get(historyPath).then((snapshot) => {
-        const historyData = snapshot.val();
-        if (historyData) {
-          for (let key in historyData) {
-            let entry = historyData[key];
-            let timestamp = new Date(entry.timestamp).toLocaleTimeString();
-
-            // Zaokrąglenie do całkowitych liczb
-            let roundedTemp = Math.round(entry.temperature_avg);
-            let roundedHumidity = Math.round(entry.humidity);
-            let roundedPressure = Math.round(entry.pressure);
-
-            // Dodanie danych historycznych do wykresu
-            temperatureData.labels.push(timestamp);
-            temperatureData.datasets[0].data.push(roundedTemp);
-
-            humidityData.labels.push(timestamp);
-            humidityData.datasets[0].data.push(roundedHumidity);
-
-            pressureData.labels.push(timestamp);
-            pressureData.datasets[0].data.push(roundedPressure);
-          }
-
-          updateChart();
-        }
+    get(historyRef).then(snapshot => {
+      const history = snapshot.val();
+      if (!history) return;
+      const entries = Object.values(history).slice(-maxPoints);
+      entries.forEach(entry => {
+        const time = new Date(entry.timestamp).toLocaleTimeString();
+        addData(temperatureChart, time, entry.temperature_avg);
+        addData(humidityChart, time, entry.humidity);
+        addData(pressureChart, time, entry.pressure);
       });
     });
   </script>
